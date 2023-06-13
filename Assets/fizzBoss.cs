@@ -1,0 +1,301 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using UnityEngine;
+using KModkit;
+using Rnd = UnityEngine.Random;
+
+public class fizzBoss : MonoBehaviour {
+
+    public KMBombInfo Bomb;
+    public KMAudio Audio;
+    public static string[] ignoredModules = null;
+    public KMSelectable[] buttons;
+    public TextMesh[] displayTexts;
+    static int ModuleIdCounter = 1;
+    int ModuleId;
+    private bool ModuleSolved;
+
+    List<int> stages = new List<int>();
+    int currentStage = 0;
+    bool submitTime;
+    int ModCount = 0;
+    int SolveCount = 0;
+    bool NoModsLeft;
+    int rollingTotal = 0;
+    List<int> primes = new List<int>();
+    List<string> solution = new List<string>();
+    List<string> phrases = new List<string>();
+    List<string> input = new List<string>();
+    int stageNumber = 0;
+
+    void Awake () {
+        ModuleId = ModuleIdCounter++;
+        GetComponent<KMBombModule>().OnActivate += Activate;
+        /*
+        foreach (KMSelectable object in keypad) {
+            object.OnInteract += delegate () { keypadPress(object); return false; };
+        }
+        */
+
+        //button.OnInteract += delegate () { buttonPress(); return false; };
+        if(ignoredModules == null) {
+            ignoredModules = GetComponent<KMBossModule>().GetIgnoredModules("FizzBoss", new string[] {
+                "14",
+                "42",
+                "501",
+                "A>N<D",
+                "Bamboozling Time Keeper",
+                "Black Arrows",
+                "Brainf---",
+                "The Board Walk",
+                "Busy Beaver",
+                "Don't Touch Anything",
+                "FizzBoss",
+                "Floor Lights",
+                "Forget Any Color",
+                "Forget Enigma",
+                "Forget Ligma",
+                "Forget Everything",
+                "Forget Infinity",
+                "Forget It Not",
+                "Forget Maze Not",
+                "Forget Me Later",
+                "Forget Me Not",
+                "Forget Perspective",
+                "Forget The Colors",
+                "Forget Them All",
+                "Forget This",
+                "Forget Us Not",
+                "Iconic",
+                "Keypad Directionality",
+                "Kugelblitz",
+                "Multitask",
+                "OmegaDestroyer",
+                "OmegaForest",
+                "Organization",
+                "Password Destroyer",
+                "Purgatory",
+                "Reporting Anomalies",
+                "RPS Judging",
+                "Security Council",
+                "Shoddy Chess",
+                "Simon Forgets",
+                "Simon's Stages",
+                "Souvenir",
+                "Speech Jammer",
+                "Tallordered Keys",
+                "The Time Keeper",
+                "Timing is Everything",
+                "The Troll",
+                "Turn The Key",
+                "The Twin",
+                "Übermodule",
+                "Ultimate Custom Night",
+                "The Very Annoying Button",
+                "Whiteout"
+            });
+        }
+
+    }
+
+    void OnDestroy () { //Shit you need to do when the bomb ends
+      
+    }
+
+    void Activate () { //Shit that should happen when the bomb arrives (factory)/Lights turn on
+
+    }
+
+    void Start () { //Shit
+        int StageOne = 2239 /*Rnd.Range(100, 999)*/;
+        //phrases table variables
+        string[] letters = { "f", "b", "z", "i", "u" };
+        string[] doubleLetters = { "ff", "bb", "zz", "ii", "uu" };
+        for(int b=0; b<5; b++) {
+            for (int m = 0; m < 5; m++) {
+                for (int e = 0; e < 5; e++) {
+                    phrases.Add(letters[b] + letters[m] + doubleLetters[e]);
+                }
+            }
+        }
+        primes = generatePrimesNaive(702);
+        //other calculation variables
+        currentStage = StageOne;
+        stages.Add(currentStage);
+        rollingTotal += currentStage;
+        
+        //Updating Display
+        displayTexts[0].text = StageOne.ToString();
+        displayTexts[1].text = "";
+
+        //Debug.LogFormat("[FizzBoss #{0}]", ModuleId);
+        Debug.LogFormat("[FizzBoss #{0}] First Stage is {1}", ModuleId, currentStage);
+
+        //buttons
+        for(int i=0; i<5; i++) {
+            int dummy = i;
+            buttons[i].OnInteract += delegate () { letterPress(buttons[dummy]); return false; };
+        }
+        buttons[5].OnInteract += delegate () { buttons[5].AddInteractionPunch(); Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, buttons[5].transform); resetInput(); return false; };
+        buttons[6].OnInteract += delegate () { buttons[6].AddInteractionPunch(); Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, buttons[6].transform); Submit(); return false; };
+    }
+
+    //replaying stages
+    IEnumerator replayStages() {
+        Debug.Log(stages.Count());
+        submitTime = false;
+        for(int i=0;  i<stages.Count(); i++) {
+            displayTexts[0].text = stages[i].ToString();
+            yield return new WaitForSeconds(1f);
+        }
+        submitTime = true;
+    }
+
+    //reset button
+    void resetInput() {
+        if(!submitTime) { return; }
+        if(ModuleSolved) { return; }
+        if(displayTexts[1].text == "") {
+        input.Clear();
+        }
+        displayTexts[1].text = "";
+    }
+
+    //phrase buttons
+    void letterPress(KMSelectable letter) {
+        letter.AddInteractionPunch();
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, letter.transform);
+        if(!submitTime) { return; }
+        if(ModuleSolved) { return; }
+        string label = letter.transform.Find("buttonText").GetComponent<TextMesh>().text;
+        if(displayTexts[1].text == "") { //if display box is empty
+            displayTexts[1].text = label;
+        } else if(displayTexts[1].text.Length >= 4) { //if display box is full
+            input.Add(displayTexts[1].text);
+            displayTexts[1].text = label;
+        } else if(displayTexts[1].text.Length >=2) { //if display has 2 letters already
+            displayTexts[1].text += label;
+            displayTexts[1].text += label;
+        } else { //if display only has 1 letter
+            displayTexts[1].text += label;
+        }
+    }
+
+    //submit button
+    void Submit() {
+        if(!submitTime) { return; }
+        if (ModuleSolved) { return; }
+        if(displayTexts[1].text != "") {
+            input.Add(displayTexts[1].text);
+        }
+        Debug.LogFormat("[FizzBoss #{0}] Submitting {1}.", ModuleId, input.Count==0 ? "Nothing" : string.Join(" ", input.ToArray()));
+        if (input.Count != solution.Count) {
+            Strike();
+            return;
+        }
+        for (int i = 0; i < input.Count; i++) {
+            if (input[i] != solution[i]) {
+                Strike();
+                return;
+            }   
+        }
+        Solve();
+    }
+
+    static List<int> generatePrimesNaive(int n) {
+        List<int> primes = new List<int>();
+        primes.Add(3);
+        int nextPrime = 5;
+        while (primes.Count < n) {
+            int sqrt = (int)Math.Sqrt(nextPrime);
+            bool isPrime = true;
+            for (int i = 0; (int)primes[i] <= sqrt; i++) {
+                if (nextPrime % primes[i] == 0) {
+                    isPrime = false;
+                    break;
+                }
+            }
+            if (isPrime) {
+                primes.Add(nextPrime);
+            }
+            nextPrime += 2;
+        }
+        return primes;
+    }
+
+    void Update () { //Shit that happens at any point after initialization
+        //Saves number of Ignored Modules on bomb as Ignored
+        int Ignored = 0;
+        for(int i = 0; i < Bomb.GetSolvableModuleNames().Count(); i++) {
+            if(ignoredModules.Contains(Bomb.GetSolvableModuleNames()[i])) {
+                Ignored++;
+            }
+        }
+        //stuff to run when a module is solved on the bomb
+        /*
+        so take the previous stages, add them together
+        take that number apply it to the 125 phrases
+        add 1 to the current number for each phrase that worked
+         */
+        ModCount = Bomb.GetSolvableModuleNames().Count() - Ignored;
+        if(SolveCount != Bomb.GetSolvedModuleNames().Count() && !NoModsLeft) {
+            while(SolveCount != Bomb.GetSolvedModuleNames().Count()) { //In case multiple modules solve simultaneously
+                SolveCount++;
+            }
+            currentStage = Rnd.Range(100, 999);
+            displayTexts[0].text = currentStage.ToString();
+            int modifier = 0;
+            for(int i=0; i<125; i++) {
+                if(rollingTotal%primes[i]==0) { modifier++; }
+            }
+            stages.Add(currentStage);
+            currentStage += modifier;
+            rollingTotal += currentStage;
+            stageNumber++;
+            Debug.LogFormat("[FizzBoss #{0}] Next stage is Number {1}, Display say {2}", ModuleId, stageNumber, currentStage-modifier);
+            Debug.LogFormat("[FizzBoss #{0}] Previous Stages add to {1}, adding {2} to Current Stage", ModuleId, rollingTotal-currentStage, modifier);
+        }
+        //stuff to run when it's this module's turn to solve
+        if(SolveCount >= ModCount && !NoModsLeft) {
+            NoModsLeft = true;
+            for(int i = 0; i < 125; i++) {
+                if(rollingTotal % primes[i] == 0) {
+                    solution.Add(phrases[i]);
+                }
+            }
+            submitTime = true;
+            Debug.LogFormat("[FizzBoss #{0}] All Stages add to {1}, The Solution is {2}.", ModuleId, rollingTotal, solution.Count == 0 ? "Nothing" : string.Join(" ", solution.ToArray()));
+        }
+
+    }
+
+    void Solve () {
+        GetComponent<KMBombModule>().HandlePass();
+        Debug.LogFormat("[FizzBoss #{0}] Correct! Module Solved.", ModuleId);
+        displayTexts[1].text = input.Count == 0 ? "She {phrases[Rnd.RandomRange(0, 124)]} on my {} till i {}" : string.Join(" ", input.ToArray());
+        ModuleSolved = true;
+    }
+
+    void Strike () {
+        GetComponent<KMBombModule>().HandleStrike();
+        Debug.LogFormat("[FizzBoss #{0}] Incorrect! Strike Issued. Replaying Stages.", ModuleId);
+        resetInput();
+        resetInput();
+        StartCoroutine(replayStages());
+    }
+
+#pragma warning disable 414
+    private readonly string TwitchHelpMessage = @"Use !{0} to do something.";
+#pragma warning restore 414
+
+    IEnumerator ProcessTwitchCommand (string Command) {
+        yield return null;
+    }
+
+    IEnumerator TwitchHandleForcedSolve () {
+        yield return null;
+    }
+}

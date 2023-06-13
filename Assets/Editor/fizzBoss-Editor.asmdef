@@ -1,0 +1,10 @@
+{
+  "name": "fizzBoss-Editor",
+  "references": [
+    "fizzBoss"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": []
+}
