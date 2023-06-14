@@ -30,6 +30,7 @@ public class fizzBoss : MonoBehaviour {
     List<string> phrases = new List<string>();
     List<string> input = new List<string>();
     int stageNumber = 0;
+    bool buttonPressed;
 
     void Awake () {
         ModuleId = ModuleIdCounter++;
@@ -110,7 +111,11 @@ public class fizzBoss : MonoBehaviour {
     }
 
     void Start () { //Shit
-        int StageOne = 2239 /*Rnd.Range(100, 999)*/;
+        for(int i = 0; i < 7; i++) {
+            buttons[i].transform.Find("buttonText").GetComponent<TextMesh>().color = Color.gray;
+        }
+        int StageOne = Rnd.Range(100, 1000);
+        //int StageOne = 2239;
         //phrases table variables
         string[] letters = { "f", "b", "z", "i", "u" };
         string[] doubleLetters = { "ff", "bb", "zz", "ii", "uu" };
@@ -145,17 +150,26 @@ public class fizzBoss : MonoBehaviour {
 
     //replaying stages
     IEnumerator replayStages() {
-        Debug.Log(stages.Count());
         submitTime = false;
+        buttonPressed = false;
+        yield return new WaitUntil(() => buttonPressed);
+        Debug.LogFormat("[FizzBoss #{0}] Replaying Stages.", ModuleId);
+        for(int i = 0; i < 7; i++) {
+            buttons[i].transform.Find("buttonText").GetComponent<TextMesh>().color = Color.gray;
+        }
         for(int i=0;  i<stages.Count(); i++) {
             displayTexts[0].text = stages[i].ToString();
             yield return new WaitForSeconds(1f);
         }
         submitTime = true;
+        for(int i = 0; i < 7; i++) {
+            buttons[i].transform.Find("buttonText").GetComponent<TextMesh>().color = Color.white;
+        }
     }
 
     //reset button
     void resetInput() {
+        buttonPressed = true;
         if(!submitTime) { return; }
         if(ModuleSolved) { return; }
         if(displayTexts[1].text == "") {
@@ -168,6 +182,7 @@ public class fizzBoss : MonoBehaviour {
     void letterPress(KMSelectable letter) {
         letter.AddInteractionPunch();
         Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, letter.transform);
+        buttonPressed = true;
         if(!submitTime) { return; }
         if(ModuleSolved) { return; }
         string label = letter.transform.Find("buttonText").GetComponent<TextMesh>().text;
@@ -186,6 +201,7 @@ public class fizzBoss : MonoBehaviour {
 
     //submit button
     void Submit() {
+        buttonPressed = true;
         if(!submitTime) { return; }
         if (ModuleSolved) { return; }
         if(displayTexts[1].text != "") {
@@ -200,7 +216,7 @@ public class fizzBoss : MonoBehaviour {
             if (input[i] != solution[i]) {
                 Strike();
                 return;
-            }   
+            }
         }
         Solve();
     }
@@ -245,7 +261,7 @@ public class fizzBoss : MonoBehaviour {
             while(SolveCount != Bomb.GetSolvedModuleNames().Count()) { //In case multiple modules solve simultaneously
                 SolveCount++;
             }
-            currentStage = Rnd.Range(100, 999);
+            currentStage = Rnd.Range(100, 1000);
             displayTexts[0].text = currentStage.ToString();
             int modifier = 0;
             for(int i=0; i<125; i++) {
@@ -268,6 +284,9 @@ public class fizzBoss : MonoBehaviour {
             }
             submitTime = true;
             Debug.LogFormat("[FizzBoss #{0}] All Stages add to {1}, The Solution is {2}.", ModuleId, rollingTotal, solution.Count == 0 ? "Nothing" : string.Join(" ", solution.ToArray()));
+            for(int i=0; i<7; i++) {
+                buttons[i].transform.Find("buttonText").GetComponent<TextMesh>().color = Color.white;
+            }
         }
 
     }
@@ -275,27 +294,105 @@ public class fizzBoss : MonoBehaviour {
     void Solve () {
         GetComponent<KMBombModule>().HandlePass();
         Debug.LogFormat("[FizzBoss #{0}] Correct! Module Solved.", ModuleId);
-        displayTexts[1].text = input.Count == 0 ? "She {phrases[Rnd.RandomRange(0, 124)]} on my {} till i {}" : string.Join(" ", input.ToArray());
+        string[] pronouns = { "He", "She", "They", "Fae" };
+        displayTexts[1].text = String.Format("{3} {0} on my \n {1} till i {2}", phrases[Rnd.Range(0, 125)], phrases[Rnd.Range(0, 125)], phrases[Rnd.Range(0, 125)], pronouns[Rnd.Range(0, 4)]);
+        displayTexts[1].fontSize = 150;
         ModuleSolved = true;
     }
 
     void Strike () {
         GetComponent<KMBombModule>().HandleStrike();
-        Debug.LogFormat("[FizzBoss #{0}] Incorrect! Strike Issued. Replaying Stages.", ModuleId);
+        Debug.LogFormat("[FizzBoss #{0}] Incorrect! Strike Issued.", ModuleId);
         resetInput();
         resetInput();
         StartCoroutine(replayStages());
     }
 
 #pragma warning disable 414
-    private readonly string TwitchHelpMessage = @"Use !{0} to do something.";
+    private readonly string TwitchHelpMessage = @"Use !{0} f/b/z/i/u/s/r to press a button. Inputs may be chained like fizbuzs";
 #pragma warning restore 414
 
-    IEnumerator ProcessTwitchCommand (string Command) {
-        yield return null;
+    KMSelectable[] ProcessTwitchCommand (string Command) {
+        foreach(char i in Command) {
+            string f = i.ToString().ToLower();
+            string[] accepted = { "f", "b", "z", "i", "u", "s", "r", "" };
+            int counting = 0;
+            foreach(string h in accepted) {
+                if(h==f) {
+                    counting++;
+                }
+            }
+            if(counting==0) { return null; }
+        }
+        List<KMSelectable> buttonList = new List<KMSelectable>();
+        foreach(char i in Command) {
+            string f = i.ToString().ToLower();
+            if(f == "f") {
+                buttonList.Add(buttons[0]);
+            }
+            if(f == "b") {
+                buttonList.Add(buttons[1]);
+            }
+            if(f == "z") {
+                buttonList.Add(buttons[2]);
+            }
+            if(f == "i") {
+                buttonList.Add(buttons[3]);
+            }
+            if(f == "u") {
+                buttonList.Add(buttons[4]);
+            }
+            if(f == "r") {
+                buttonList.Add(buttons[5]);
+            }
+            if(f == "s") {
+                buttonList.Add(buttons[6]);
+            }
+        }
+        return buttonList.ToArray();
     }
 
-    IEnumerator TwitchHandleForcedSolve () {
-        yield return null;
+    KMSelectable[] TwitchHandleForcedSolve () {
+        foreach(string s in solution) {
+            foreach(char i in s) {
+                string f = i.ToString().ToLower();
+                string[] accepted = { "f", "b", "z", "i", "u", "s", "r" };
+                int counting = 0;
+                foreach(string h in accepted) {
+                    if(h==f) {
+                        counting++;
+                    }
+                }
+                if(counting==0) { return null; }
+            }
+        }
+        List<KMSelectable> buttonList = new List<KMSelectable>();
+        foreach(string s in solution) {
+            foreach(char i in s) {
+                string f = i.ToString().ToLower();
+                if(f == "f") {
+                    buttonList.Add(buttons[0]);
+                }
+                if(f == "b") {
+                    buttonList.Add(buttons[1]);
+                }
+                if(f == "z") {
+                    buttonList.Add(buttons[2]);
+                }
+                if(f == "i") {
+                    buttonList.Add(buttons[3]);
+                }
+                if(f == "u") {
+                    buttonList.Add(buttons[4]);
+                }
+                if(f == "r") {
+                    buttonList.Add(buttons[5]);
+                }
+                if(f == "s") {
+                    buttonList.Add(buttons[6]);
+                }
+            }
+        }
+        return buttonList.ToArray();
     }
 }
