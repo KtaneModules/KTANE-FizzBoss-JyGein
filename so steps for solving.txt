@@ -1,0 +1,13 @@
+so steps for solving
+each stage take the current stage number, add up all previous stages (which is 0 on the first stage)
+and for every phrase in the phrases table that divides into the previous stage total add 1 to the current stage's number
+and that it's real numebr that'll be used in future caluclations of this (what you just did) and at the end
+
+at the end add up all the stages (their real number) and input each phrase in order of the Phrases table (reading top to down then left to right) 
+when inputting it'll automatically do the fourth letter of the phrase since it's always the same as the third (typing fiz will input fizz).
+once the defuser start inputting a second phrase it wont show previous phrases that the defuser has inputted. 
+pressing R(Reset) will clear the current phrase input (what the defuser can see on the display), 
+if the current phrase input is clear it'll clear all previous inputs (even the ones the defuser can't see)
+press submit once you've inputted the required phrases to solve,
+if you were incorrect the module will enter recovery mode, to replay all the stages press any button.
+after it is done replaying you start inputting again.
